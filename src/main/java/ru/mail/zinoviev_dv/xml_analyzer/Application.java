@@ -17,13 +17,14 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.stream.Stream;
 
+
 public class Application {
     public static void main(String[] args) throws IOException {
 
         String dir;
         String xmlTag;
 
-        if (args.length < 2) {
+        if((args == null) || (args.length < 2)) {
             Scanner scanner = new Scanner(System.in);
             dir = getDir(scanner);
             xmlTag = getXmlTag(scanner);
@@ -96,7 +97,7 @@ public class Application {
         HashSet<String> result = new HashSet<>();
         try {
             //Для создания древовидной структуры создается объект класса DocumentBuilder
-            DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+            DocumentBuilder builder = DocumentBuilderFactory.newDefaultInstance().newDocumentBuilder();
 
             //Создается объект Document — он является представлением всей информации внутри XML
             Document document = builder.parse(fileName);
@@ -163,23 +164,25 @@ public class Application {
         Path destDir = Paths.get(pathDestDir);
         try (java.nio.file.FileSystem zipFileSystem = java.nio.file.FileSystems.newFileSystem(zipFilePath)) {
             Path root = zipFileSystem.getRootDirectories().iterator().next();
-            Files.walk(root)
-                    .forEach(path -> {
-                        Path destPath = Paths.get(destDir.toString(), path.toString().substring(1));
-                        try {
-                            if (Files.isDirectory(path)) {
-                                Files.createDirectories(destPath);
-                            } else {
-                                Files.copy(path, destPath, StandardCopyOption.REPLACE_EXISTING);
-                                if (destPath.toString().endsWith(".zip")) {
-                                    // found a zip file, try to open
-                                    tryUnZip(destPath.toString(), destPath.toString().replace(".zip", "zip"));
+            try(var input = Files.walk(root)) {
+                input.forEach(path -> {
+                            Path destPath = Paths.get(destDir.toString(), path.toString().substring(1));
+                            try {
+                                if (Files.isDirectory(path)) {
+                                    Files.createDirectories(destPath);
+                                } else {
+                                    Files.copy(path, destPath, StandardCopyOption.REPLACE_EXISTING);
+                                    if (destPath.toString().endsWith(".zip")) {
+                                        // found a zip file, try to open
+                                        tryUnZip(destPath.toString(), destPath.toString().replace(".zip", "zip"));
+                                    }
                                 }
+                            } catch (IOException e) {
+                                System.out.println(Arrays.toString(e.getStackTrace()));
                             }
-                        } catch (IOException e) {
-                            System.out.println(Arrays.toString(e.getStackTrace()));
-                        }
-                    });
+                        })
+                ;
+            }
         }
     }
 
@@ -187,8 +190,10 @@ public class Application {
         try {
             unzip(pathZipFilePath, pathDestDir);
         } catch (Exception e){
+
             System.out.println("Ошибка в файле " + pathZipFilePath);
         }
     }
+
 }
 
