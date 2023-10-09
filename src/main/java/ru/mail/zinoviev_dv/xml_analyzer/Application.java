@@ -1,21 +1,25 @@
 package ru.mail.zinoviev_dv.xml_analyzer;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FilenameFilter;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Stream;
+import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-
-import org.w3c.dom.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FilenameFilter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.*;
+import java.util.stream.Stream;
 
 public class Application {
-    public static void main(String[] args) throws FileNotFoundException {
+    public static void main(String[] args) throws IOException {
+
         String dir;
         String xmlTag;
 
@@ -28,7 +32,14 @@ public class Application {
             dir = args[0];
             xmlTag = args[1];
         }
+
+        if(dir.endsWith(".zip")){
+            unzip(dir, dir.replace(".zip", "zip"));
+            dir = dir.replace(".zip", "zip");
+        }
+
         Path path = Paths.get(dir);
+
         if(!Files.exists(path)){
             String error = "Директория '" + path + "' не существует";
             throw new FileNotFoundException(error);
@@ -145,6 +156,39 @@ public class Application {
             value.append(" = ")
                     .append(element.getTextContent());
         return value.toString();
+    }
+
+    public static void unzip(String pathZipFilePath, String pathDestDir) throws IOException {
+        Path zipFilePath = Paths.get(pathZipFilePath);
+        Path destDir = Paths.get(pathDestDir);
+        try (java.nio.file.FileSystem zipFileSystem = java.nio.file.FileSystems.newFileSystem(zipFilePath)) {
+            Path root = zipFileSystem.getRootDirectories().iterator().next();
+            Files.walk(root)
+                    .forEach(path -> {
+                        Path destPath = Paths.get(destDir.toString(), path.toString().substring(1));
+                        try {
+                            if (Files.isDirectory(path)) {
+                                Files.createDirectories(destPath);
+                            } else {
+                                Files.copy(path, destPath, StandardCopyOption.REPLACE_EXISTING);
+                                if (destPath.toString().endsWith(".zip")) {
+                                    // found a zip file, try to open
+                                    tryUnZip(destPath.toString(), destPath.toString().replace(".zip", "zip"));
+                                }
+                            }
+                        } catch (IOException e) {
+                            System.out.println(Arrays.toString(e.getStackTrace()));
+                        }
+                    });
+        }
+    }
+
+    public static void tryUnZip(String pathZipFilePath, String pathDestDir){
+        try {
+            unzip(pathZipFilePath, pathDestDir);
+        } catch (Exception e){
+            System.out.println("Ошибка в файле " + pathZipFilePath);
+        }
     }
 }
 
